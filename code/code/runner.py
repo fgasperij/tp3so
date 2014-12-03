@@ -8,9 +8,9 @@ import argparse
 conn = MongoClient()
 db = conn.reddit
 
-EJS_DIRS = ['ej1']
+EJS_DIRS = ['ej5']
 
-def run(code, incoll = 'posts', outcoll = 'default'):
+def run(code='all', incoll = 'posts', outcoll = 'default'):
     print "Corriendo map_reduce sobre %s.%s" % ("reddit", incoll)
     for ej in  EJS_DIRS if code == 'all' else [ code ] :
         print "Algoritmos a ejecutar en recurso %s" % ej
@@ -29,7 +29,7 @@ def run(code, incoll = 'posts', outcoll = 'default'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("code", default = 'all',
+    parser.add_argument("--code", default = 'all',
             help = "el directorio donde se encuentran los \
 scripts de map y reduce, default corre todo los directorios ejx")
     parser.add_argument("--incoll",  default = 'posts',

@@ -1,3 +1,14 @@
+# Mongo dirs
+db/
+
+# Vim
+*.swp
+
+# Latex
+*.toc
+*.aux
+*.log
+
 # Object files
 *.o
 *.ko

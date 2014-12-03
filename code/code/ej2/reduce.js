@@ -1,11 +1,10 @@
 function (key, values){
-  var maximum = 0;
+  var reducedValue = {score: 0, votes: 0};
   for (var i = 0; i < values.length; i++) {
-    if (values[i] > maximum) {
-      maximum = values[i];
-    }
+    reducedValue.score += values[i].score;
+    reducedValue.votes += values[i].votes;
   }
 
-  return maximum;
+  return reducedValue;
 }
   

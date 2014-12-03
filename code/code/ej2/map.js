@@ -1,5 +1,3 @@
 function() {
-  if (this.total_votes >= 2000) {
-    emit(this.title, this.score);
-  }
+  emit(this.title, {score: this.score, votes: this.total_votes});
 }

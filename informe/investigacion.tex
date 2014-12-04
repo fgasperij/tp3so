@@ -1,1 +1,72 @@
 \section{Investigación}
+
+Conceptos importantes:
+
+-statistical multiplexing: Type of communication link sharing.
+
+-data consolidation: Collection and integration of data from multiple sources
+into one single destination.
+
+-data warehouse: Central repository of data that stores all historical data to the
+present.
+
+-hadoop: Software framework for distributed storage and processing of large data sets across clusters.
+
+-cluster, node: A cluster is a set of nodes. A node is a computer, server that belongs to the cluster.
+They are geographicaly close and connected through fast LANs. They perform distributed computing, all
+the nodes perform the same task at the same task in order to improve efficiency of computation.
+
+
+Problema: cuando compartían un mismo cluster jobs de distina duración la performance era mala.
+
+Solución propuesta: cambiar el scheduler de Hadoop. FAIR scheduler.
+
+Problemas encontrados: MapReduce presenta dos problemas al esquema que delinea
+el FAIR scheduler:
+
+-Data locality: breaks locality. Types of locality: node, rack or bad.
+Head of line scheduling: longer jobs achieve higher locality due to the higher probability
+that their data is in the node requesting the task. Sticky slots es un problema
+relacionado que sucede cuando la distribución de slots entre los jobs es pareja por lo cual
+los jobs nunca dejan sus slots originales.
+Solucióń propuesta: delay scheduling. Seguir el orden estricto de la cola impone la
+posibilidad de asignar un slot a un job que no cuenta con data local. Sin embargo, si
+esto sucede lo que haremos ahora será mirar otro job en la cola para ver si él tiene
+data local en alguno de los slots disponibles. Para prevenir la inanición de éstos jobs que
+no pueden encontrar localidad hay dos tiempos uno de Rack y otro de off-rack en el cual sin
+importar si es local o no se le asigna un slot.
+
+-Reduce/Map interdependence: los reduce slots son ocupados por reducers que están esperando que 
+sus correspondientes maps terminen. Esto pasa mayormente cuando hay jobs largos. Hadoop
+larga las tasks de reduce a penas terminan las primeras map tasks para que puedan empezar a copiar
+la información. No se puede resolver el problema simplemente haciendo que las reduce tasks empiecen
+más tarde porque por la forma en la que están implementadas en Hadoop inclusive con una sola tasks
+puede haber desperdicio ya que una vez que se toma el slot pueden haber intervalos de tiempo 
+en los que se dedica a hacer procesamiento intensivo y otros en los que hace IO intensivo, durante
+esos intervalos uno o el otro se desperdicia. Lo ideal sería poder superponer las operaciones de IO 
+y de procesamiento para que ocurran simultáneamente.
+Solución propuesta: copy-compute splitting. La idea es dividir las reduce tasks en dos unidades 
+lógicas separadas: copy tasks y compute tasks con diferentes tipos de admisión de control. Las
+copy taks se encargarán de llevar y hacer merge de la salida de los maps y las compute tasks
+van a ser las encargadas de aplicar las funciones de reduce. Una de las posibles implementaciones
+era con procesos separados pero la necesidad de tener memoria compartida y las complejidades 
+que eso implicaba provocó que descartaran la idea. Su implementación, llamada Compute Phase
+Admission Control (CPAC), consiste en que los nodos tengan dos límites: uno para la cantidad
+de reducers que pueden estar simultáneamente computando o copiando datos, éste es igual a 
+la cantidad de slots que tienen, y otro, que es varias veces mayor a éste, que es la cantidad
+de reducers que pueden estar compitiendo por estos lugares. De esta forma se puede lograr 
+que diferentes jobs puedan estar copiando datos y computando simultáneamente. Como el código de
+CPAC reusa el código de Hadoop de las reduce tasks no pierde ninguno de sus beneficios.
+Un problema potencial de esta implementación como fue descripta es que la memoria que 
+utilizan las copy tasks debe ser reducida porque no debe perturbar a las computing tasks,
+recordemos que en la fase de cómputo los reducers utilizan mucha memoria.
+
+\subsection{Motivación, surgimiento}
+\subsection{El problema en la vida diaria}
+\subsection{El problema}
+\subsection{Historia}
+\subsection{Problemas con otras soluciones}
+\subsection{Soluciones}
+\subsection{Discusión}
+\subsection{Conclusiones}
+

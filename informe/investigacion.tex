@@ -1,10 +1,46 @@
 \section{Investigación}
 
 \subsection{Problema}
-Problema: cuando compartían un mismo cluster jobs de distina duración la performance era mala.
+La implementación open-source de MapReduce, Hadoop, fue originalmente optimizada
+para correr largas cadenas de batch jobs. Sin embargo, su contexto de uso empezó 
+a cambiar y comenzó a utilizarse en clusters compartidos por varios usuarios con
+distintas necesidades. Algunos ejecutaban jobs batch, otros jobs más cortos,
+otros queries interactivas. En estas nuevas condiciones se notó una baja de la
+performance, no necesariamente en el throughput si no en el response time
+que tenían los nuevos usuarios con distintas necesidades a las del original 
+batch de jobs largo.  Las ventajas de compartir un cluster entre muchos
+usuarios son altamente deseadas:
+\begin{enumerate}
+  \item statistical multiplexing: aprovechar al máximo los recursos disponibles 
+    redistribuyendo la capacidad no utilizada por ciertos jobs para que puedan 
+    usarla otros.
+  \item data consolidation: concentrar datos dispares en un mismo cluster reduce
+    la necesidad de replicarlos en clusters particulares para cada grupo de usuarios.
+\end{enumerate}
+Por lo tanto, lo que se intentó fue mejorar la respuesta del sistema
+ante éstos nuevos requerimientos sin dejar de compartir los clusters.
+
+\subsubsection{Caso particular}
+El trabajo del paper fue originalmente motivado por la carga de trabajo que tenía
+Facebook en su data warehouse que administra con Hadoop. Facebook registra los
+eventos de todos sus usuarios en la aplicación y corre sobre ellos largos 
+batch de jobs periódicamente pero también pequeñas tasks de preprocesamiento
+que le permite cachear ciertos datos para mejorar el tiempo de respuesta. Inclusive
+algunos de sus ingenieros realizan queries a través de Hive, la consola interactiva
+de Hadoop. Con este uso es que los jobs de producción se ralentizaron y las
+consultas interactivas tomaban un tiempo que superaba toda espera práctica.
+Se consideró la posibilidad de construir clusters privados para los distintos
+grupos pero se descartó por se demasiado caro.
 
 \subsection{Perspectiva}
-Solución propuesta: cambiar el scheduler de Hadoop. FAIR scheduler.
+El enfoque que proponen es un cambio de scheduler. Para ello diseñaron uno
+al cual llamaron FAIR scheduler con el objetivo de proveer a los usuarios la ilusión
+de que cuentan con un cluster privado pero sin perder de vista un
+buen aprovechamiento de los recursos. El objetivo es permitir que los
+jobs más cortos e incluso la queries interactivas no se vean arrastradas
+por el actual FIFO scheduler, que optimiza la utilización de los recursos
+para maximizar el throughput, pero es ciego ante las necesidades de jobs
+distintos como los que mencionamos.
 
 \subsection{Obstáculos encontrados}
 MapReduce presenta dos problemas al esquema que delinea el FAIR scheduler.

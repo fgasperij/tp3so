@@ -1,51 +1,57 @@
 \section{Investigación}
 
-Conceptos importantes:
-
--statistical multiplexing: Type of communication link sharing.
-
--data consolidation: Collection and integration of data from multiple sources
-into one single destination.
-
--data warehouse: Central repository of data that stores all historical data to the
-present.
-
--hadoop: Software framework for distributed storage and processing of large data sets across clusters.
-
--cluster, node: A cluster is a set of nodes. A node is a computer, server that belongs to the cluster.
-They are geographicaly close and connected through fast LANs. They perform distributed computing, all
-the nodes perform the same task at the same task in order to improve efficiency of computation.
-
-
+\subsection{Problema}
 Problema: cuando compartían un mismo cluster jobs de distina duración la performance era mala.
 
+\subsection{Perspectiva}
 Solución propuesta: cambiar el scheduler de Hadoop. FAIR scheduler.
 
-Problemas encontrados: MapReduce presenta dos problemas al esquema que delinea
-el FAIR scheduler:
+\subsection{Obstáculos encontrados}
+MapReduce presenta dos problemas al esquema que delinea el FAIR scheduler.
 
--Data locality: breaks locality. Types of locality: node, rack or bad.
-Head of line scheduling: longer jobs achieve higher locality due to the higher probability
-that their data is in the node requesting the task. Sticky slots es un problema
-relacionado que sucede cuando la distribución de slots entre los jobs es pareja por lo cual
-los jobs nunca dejan sus slots originales.
-Solucióń propuesta: delay scheduling. Seguir el orden estricto de la cola impone la
-posibilidad de asignar un slot a un job que no cuenta con data local. Sin embargo, si
-esto sucede lo que haremos ahora será mirar otro job en la cola para ver si él tiene
-data local en alguno de los slots disponibles. Para prevenir la inanición de éstos jobs que
-no pueden encontrar localidad hay dos tiempos uno de Rack y otro de off-rack en el cual sin
-importar si es local o no se le asigna un slot.
+\subsubsection{Data locality}
+Perjudica la localidad de los datos de las tasks. Al trabajar en un sistema distribuido
+los datos que una task debe procesar no necesariamente se encuentran en el mismo
+nodo en el que se le asigno un slot. Lo ideal es que sí para que el tiempo que toma
+transmitir la información de donde sea que esté hasta donde la task la necesita
+sea lo más rápido posible. En un cluster con 2 niveles de localidad podemos tener
+varias formas de localidad:
+\begin{enumerate}
+  \item node locality: la información se encuentra en el nodo que nos asignaron, es lo mejor.
+  \item rack locality: la información se encuentra en un nodo con el que compartimos el 
+    rack. La velocidad de transmisión para nodos en un mismo rack es menor a la que se consigue
+    en el nodo mismo pero mucho mayor que la que existe entre distintos racks.
+\end{enumerate}
+Llaman al problema head-of-line scheduling el cual consiste en que los jobs más largos
+consiguen una mayor localidad de sus datos ya que al tener más nodos con sus datos la 
+probabilidad de que caigan en uno de ellos es mayor. Se llama head-of-line scheduling
+porque lo que sucede es que cuando un nodo se desocupa se le envía el job que primero
+está en la cola sin tener en consideración cuestiones referidas a la localidad de sus datos.
+Sticky slots es otro problema relacionado, que sucede cuando la distribución de slots 
+entre los jobs es pareja por lo cual los jobs nunca dejan sus slots originales.
+La solucióń propuesta es lo que llamaron delay scheduling. Como vimos, seguir el orden 
+estricto de la cola impone la posibilidad de asignar un slot a un job que no cuenta 
+con data local. Por lo tanto, el delay scheduling propone que antes de asignar un job a un
+nodo se considere la localidad de los datos. Si el primer job no cuenta con localidad suficiente
+en el nodo disponible se pasa a considerar otro job y no se le asigna el nodo al primero.
+Para prevenir la inanición de estos jobs que no pueden encontrar localidad hay 
+dos tiempos máximos que se contemplan: uno de rack y otro de off-rack en el cual sin 
+importar si es local o no se le asigna un slot. Es decir, primero se intenta conseguir
+un nodo con máxima localidad, superado cierto umbral uno con localidad de rack y superado
+el segundo umbral cualquier nodo disponible será asignado al job.
 
--Reduce/Map interdependence: los reduce slots son ocupados por reducers que están esperando que 
-sus correspondientes maps terminen. Esto pasa mayormente cuando hay jobs largos. Hadoop
-larga las tasks de reduce a penas terminan las primeras map tasks para que puedan empezar a copiar
+\subsubsection{Interdependencia de Reduce/Map}
+Los reduce slots son ocupados por reducers que están esperando que 
+sus correspondientes maps terminen y esto puede llegar a tomar mucho tiempo lo cual
+redunda en desperdicio del slot. Esto pasa mayormente cuando hay jobs largos. Hadoop
+larga las tasks de reduce apenas terminan las primeras map tasks para que puedan empezar a copiar
 la información. No se puede resolver el problema simplemente haciendo que las reduce tasks empiecen
 más tarde porque por la forma en la que están implementadas en Hadoop inclusive con una sola tasks
 puede haber desperdicio ya que una vez que se toma el slot pueden haber intervalos de tiempo 
 en los que se dedica a hacer procesamiento intensivo y otros en los que hace IO intensivo, durante
 esos intervalos uno o el otro se desperdicia. Lo ideal sería poder superponer las operaciones de IO 
 y de procesamiento para que ocurran simultáneamente.
-Solución propuesta: copy-compute splitting. La idea es dividir las reduce tasks en dos unidades 
+La solución que proponenen se llama copy-compute splitting. La idea es dividir las reduce tasks en dos unidades 
 lógicas separadas: copy tasks y compute tasks con diferentes tipos de admisión de control. Las
 copy taks se encargarán de llevar y hacer merge de la salida de los maps y las compute tasks
 van a ser las encargadas de aplicar las funciones de reduce. Una de las posibles implementaciones
@@ -57,16 +63,30 @@ la cantidad de slots que tienen, y otro, que es varias veces mayor a éste, que 
 de reducers que pueden estar compitiendo por estos lugares. De esta forma se puede lograr 
 que diferentes jobs puedan estar copiando datos y computando simultáneamente. Como el código de
 CPAC reusa el código de Hadoop de las reduce tasks no pierde ninguno de sus beneficios.
-Un problema potencial de esta implementación como fue descripta es que la memoria que 
+Un potencial problema de esta implementación como fue descripta es que la memoria que 
 utilizan las copy tasks debe ser reducida porque no debe perturbar a las computing tasks,
 recordemos que en la fase de cómputo los reducers utilizan mucha memoria.
+Compararon la performance de FIFO contra FAIR scheduling con y sin copy-compute splitting.
+Con respecto al response time en batch jobs FIFO supera al FAIR scheduling en todas sus formas.
+Sin embargo, FAIR supera a FIFO cuando se comparan sus slowdowns, que es cuánto se aleja 
+el response time obtenido del que hubiera tenido si hubiera tenido un cluster privado dedicado.
+Es ésta comparación la que muestra que FAIR scheduling resulta superior en contexto de multi-usuarios.
 
-\subsection{Motivación, surgimiento}
-\subsection{El problema en la vida diaria}
-\subsection{El problema}
-\subsection{Historia}
-\subsection{Problemas con otras soluciones}
-\subsection{Soluciones}
 \subsection{Discusión}
-\subsection{Conclusiones}
+En todo momento lo que se intenta equilibrar con este trabajo es el aislamiento de cada usuario
+y la utilización que se hace de los recursos. Por aislamiento de cada usuario nos referimos 
+a algo parecido a lo que mencionamos como la métrica de slowdown, y es que cada usuario pueda
+llegar a tener la sensación, en response time, de que tiene un cluster privado, más pequeño,
+pero exclusivo. Se partió de un FIFO scheduler que utiliza muy bien los recursos pero no
+provee ningún tipo de aislamiento para los usuarios. Lo que lograron con el FAIR scheduler
+es ubicarse en un punto más intermedio entre el aislamiento y la utilización óptima de
+los recursos. De esta forma, en un cluster donde tienen que convivir jobs muy distintos como
+queries interactivas, jobs de producción o batchs, pueden hacerlo de una forma más 
+balanceada.
 
+\subsection{Conclusión}
+Los clusters compartidos presentan un gran beneficio cuando se comparte información
+entre muchos usuarios ya que permite reducir los costos y una mejor utilización
+de los recursos. Como el uso que reciben se ha orientado en muchos a casos a ambientes
+en los cuales deben responder a múltiples usuarios considerar la implementación
+de políticas como el FAIR scheduling son una buena opción.

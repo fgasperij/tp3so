@@ -8,6 +8,7 @@ db/
 *.toc
 *.aux
 *.log
+*.pdf
 
 # Object files
 *.o
